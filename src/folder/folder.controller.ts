@@ -6,7 +6,7 @@ import { Account } from 'src/account/account.entity';
 import { AccountGuard } from 'src/account/account.guard';
 import { FolderService } from './folder.service';
 import { FolderInfoDto } from './dto/folder-info.dto';
-
+//! todo fix this bullshit to /folder/:owner/:name or smth like that
 @Controller(':owner/:name')
 @UseGuards(AccountGuard)
 export class FolderController {
