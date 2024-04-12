@@ -7,9 +7,9 @@ import { Account } from './account.entity';
 import { ConfigModule } from '@nestjs/config';
 
 @Module({
-  imports:[JwtModule,TypeOrmModule.forFeature([Account]),ConfigModule],
-  providers:[AccountService],
-  controllers: [AccountController],
-  exports:[TypeOrmModule,AccountService]
+    imports: [JwtModule, TypeOrmModule.forFeature([Account]), ConfigModule],
+    providers: [AccountService],
+    controllers: [AccountController],
+    exports: [TypeOrmModule, AccountService]
 })
-export class AccountModule {}
+export class AccountModule { }
