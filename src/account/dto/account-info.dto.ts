@@ -1,4 +1,4 @@
-import { Exclude, Expose, Transform } from "class-transformer";
+import { Exclude, Expose } from "class-transformer";
 @Exclude()
 export class AccountInfoDto {
     @Expose()
@@ -8,6 +8,5 @@ export class AccountInfoDto {
     @Expose()
     email: string;
     @Expose()
-    @Transform((f) => f?.value?.length)
-    authorizedTokens: number;
+    username: string;
 }

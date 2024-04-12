@@ -4,10 +4,9 @@ import { JwtModule } from '@nestjs/jwt';
 import { AccountService } from './account.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Account } from './account.entity';
-import { ConfigModule } from '@nestjs/config';
 
 @Module({
-    imports: [JwtModule, TypeOrmModule.forFeature([Account]), ConfigModule],
+    imports: [JwtModule, TypeOrmModule.forFeature([Account])],
     providers: [AccountService],
     controllers: [AccountController],
     exports: [TypeOrmModule, AccountService]

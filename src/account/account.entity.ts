@@ -1,9 +1,12 @@
 import { Exclude } from 'class-transformer';
+import { Folder } from 'src/folder/folder.entity';
 import {
+    BeforeInsert,
     Column,
     CreateDateColumn,
     DeleteDateColumn,
     Entity,
+    OneToMany,
     PrimaryGeneratedColumn,
     UpdateDateColumn,
 } from 'typeorm';
@@ -14,6 +17,14 @@ export class Account {
     id: number;
     @Column({ unique: true })
     email: string;
+    @Column({nullable:true})
+    username:string;
+    @BeforeInsert()
+    autoAssignUsername() {
+        this.username = this.email.split('@')[0];
+    }
+    @OneToMany(() => Folder,folder => folder.owner,{nullable:true,onDelete:'CASCADE'})
+    folders: Folder[];
     @Column()
     @Exclude()
     password: string;
