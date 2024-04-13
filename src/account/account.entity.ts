@@ -1,4 +1,3 @@
-import { Exclude } from 'class-transformer';
 import { Folder } from 'src/folder/folder.entity';
 import {
     BeforeInsert,
@@ -26,17 +25,13 @@ export class Account {
     @OneToMany(() => Folder,folder => folder.owner,{nullable:true,onDelete:'CASCADE'})
     folders: Folder[];
     @Column()
-    @Exclude()
     password: string;
     @CreateDateColumn({ name: 'created_at' })
     createdAt: Date;
-    @Exclude()
     @UpdateDateColumn({ name: 'updated_at' })
     updatedAt: Date;
-    @Exclude()
     @DeleteDateColumn({ name: 'deleted_at' })
     deletedAt: Date;
-    @Exclude()
     @Column({ name: 'twofa_secret', nullable: true })
     twoFaSecret?: string;
 }
