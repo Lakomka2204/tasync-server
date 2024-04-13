@@ -77,6 +77,37 @@ export class AccountController {
         }
         await this.accountService.deleteAccount(account.id);
     }
+
+    @HttpCode(200)
+    @Post()
+    async login(
+        @Body() accountBody: AuthAccountDto,
+        @Res({ passthrough: true }) res: Response
+    ): Promise<{ access_token: string }> {
+        const [token, account] = await this.accountService.getAuthToken(accountBody, true);
+        if (token === undefined)
+            throw new NotFoundException('Wrong email or password');
+        else if (token === null)
+            throw new ForbiddenException('2fa code is required.');
+        if (account.deletedAt) {
+            res.header("X-AccessToken", token);
+            throw new UnauthorizedException("Account was deleted");
+        }
+        return { access_token: token };
+    }
+    @Throttle({ default: { ttl: minutes(1), limit: 3 } })
+    @Put()
+    async register(
+        @Body() accountBody: CreateAccountDto,
+    ): Promise<{ access_token: string }> {
+        const account = await this.accountService.createAccount(accountBody);
+        if (!account)
+            throw new BadRequestException(
+                'User with specified email already exists.',
+            );
+        const [token] = await this.accountService.getAuthToken(accountBody);
+        return { access_token: token };
+    }
     @Delete('/2fa')
     @HttpCode(200)
     @UseGuards(AccountGuard)
@@ -137,35 +168,5 @@ export class AccountController {
     @UseGuards(AccountGuard)
     async restoreAccount() {
 
-    }
-    @HttpCode(200)
-    @Post('/login')
-    async login(
-        @Body() accountBody: AuthAccountDto,
-        @Res({ passthrough: true }) res: Response
-    ): Promise<{ access_token: string }> {
-        const [token, account] = await this.accountService.getAuthToken(accountBody, true);
-        if (token === undefined)
-            throw new NotFoundException('Wrong email or password');
-        else if (token === null)
-            throw new ForbiddenException('2fa code is required.');
-        if (account.deletedAt) {
-            res.header("X-AccessToken", token);
-            throw new UnauthorizedException("Account was deleted");
-        }
-        return { access_token: token };
-    }
-    @Throttle({ default: { ttl: minutes(1), limit: 3 } })
-    @Put('/register')
-    async register(
-        @Body() accountBody: CreateAccountDto,
-    ): Promise<{ access_token: string }> {
-        const account = await this.accountService.createAccount(accountBody);
-        if (!account)
-            throw new BadRequestException(
-                'User with specified email already exists.',
-            );
-        const [token] = await this.accountService.getAuthToken(accountBody);
-        return { access_token: token };
     }
 }
