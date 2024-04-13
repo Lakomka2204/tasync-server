@@ -20,4 +20,6 @@ export class Folder {
     @Exclude()
     @DeleteDateColumn({ name: 'deleted_at' })
     deletedAt: Date;
+    @Column({array:true,type:'int',default:[]})
+    snapshots: number[];
 }

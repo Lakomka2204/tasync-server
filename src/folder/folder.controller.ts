@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, Get, HttpCode, MaxFileSizeValidator, NotFoundException, Param, ParseFilePipe, Post, Put, Req, StreamableFile, UploadedFile, UploadedFiles, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, FileTypeValidator, Get, Head, HttpCode, MaxFileSizeValidator, NotFoundException, Param, ParseFilePipe, Post, Put, Req, StreamableFile, UploadedFile, UploadedFiles, UseGuards, UseInterceptors } from '@nestjs/common';
 import { AnyFilesInterceptor, FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
 import { join } from 'path';
@@ -6,7 +6,7 @@ import { Account } from 'src/account/account.entity';
 import { AccountGuard } from 'src/account/account.guard';
 import { FolderService } from './folder.service';
 import { FolderInfoDto } from './dto/folder-info.dto';
-import { plainToClass } from 'class-transformer';
+import { plainToClass, plainToInstance } from 'class-transformer';
 import { CreateFolderDto } from './dto/create-folder.dto';
 import { Throttle, minutes } from '@nestjs/throttler';
 
@@ -16,22 +16,28 @@ export class FolderController {
     constructor(
         private readonly folderService: FolderService
     ) { }
+    @Get()
+    @HttpCode(200)
+    async getAccountFolders(
+        @Req() req: Request
+    ): Promise<FolderInfoDto[]> {
+        const account: Account = JSON.parse(req.headers.authorization);
+        return plainToInstance(FolderInfoDto, await this.folderService.getFolders(account));
+    }
     @Get(":owner/:name")
     @HttpCode(200)
     async getFolderInfo(
         @Req() req: Request,
-        @Param('owner') ownerName: string,
+        @Param('owner') ownerFolderName: string,
         @Param('name') folderName: string,
     ): Promise<FolderInfoDto> {
-        const folder = await this.folderService.getFolderByName(ownerName, folderName);
+        const folder = await this.folderService.getFolderByName({ownerFolderName, folderName});
         if (!folder)
             throw new NotFoundException("Folder is not found");
-        if (folder?.isPublic)
-            return plainToClass(FolderInfoDto, folder);
         const account: Account = JSON.parse(req.headers.authorization);
-        if (folder.owner.id === account.id)
-            return plainToClass(FolderInfoDto, folder);
-        throw new NotFoundException("Folder is not found");
+        if (!(await this.folderService.canAccessFolder(account.id, {ownerFolderName, folderName})))
+            throw new NotFoundException("Folder is not found");
+        return plainToClass(FolderInfoDto, folder);
     }
 
     @Put()
@@ -44,8 +50,6 @@ export class FolderController {
         const account: Account = JSON.parse(req.headers.authorization);
         const folder = await this.folderService.createFolder(account, createFolderBody);
         if (!folder) throw new BadRequestException(`Folder with specified name already exists`);
-        return folder.id;
-
     }
 
     @Delete(':name')
@@ -63,42 +67,32 @@ export class FolderController {
     @Put(":name")
     @HttpCode(201)
     @Throttle({ default: { ttl: minutes(1), limit: 5 } })
-    @UseInterceptors(AnyFilesInterceptor())
-    async uploadFile(
+    @UseInterceptors(FilesInterceptor('file'))
+    async uploadArchive(
         @Req() req: Request,
         @Param("name") folderName: string,
-        @UploadedFile('file',
+        @UploadedFiles(
             new ParseFilePipe({
                 validators: [
-                    new MaxFileSizeValidator({ maxSize: 104_857_600, message: "Too large file" })
+                    new MaxFileSizeValidator({ maxSize: 104_858_624, message: "Too large file" })
                 ]
             })
-        ) file: Express.Multer.File,
-        @UploadedFile('info')
-        infoFile: Express.Multer.File,
+        ) files: Express.Multer.File[],
     ) {
-        const account: Account = JSON.parse(req.headers.authorization);
-        if (!infoFile.originalname.endsWith('.tasync'))
-            throw new BadRequestException("File with .tasync extension required");
-        if (!file)
-            throw new BadRequestException("At least one file is required");
-        console.log('lol',file.size);
-
+        if (!files || files.length == 0)
+            throw new BadRequestException("Files is required");
+        return `Files received ${files.length}`;
     }
-    @Get(":owner/:name/:file")
+    @Head(":owner/:name")
     @HttpCode(200)
-    @Throttle({ default: { ttl: minutes(5), limit: 50 } })
-    async getFile(
+    async getInfoFile(
         @Req() req: Request,
         @Param('owner') ownerFolderName: string,
-        @Param('name') folderName: string,
-        @Param('file') fileName: string,
-    ): Promise<StreamableFile> {
+        @Param("name") folderName: string
+    ) {
         const account: Account = JSON.parse(req.headers.authorization);
-        const file = await this.folderService.getFile(account, ownerFolderName, folderName, fileName);
-        if (!file)
-            throw new NotFoundException("File not found")
+        if (!(await this.folderService.canAccessFolder(account.id,{ownerFolderName,folderName})))
+            throw new NotFoundException("Folder is not found");
 
-        return new StreamableFile(file, { length: file.length });
     }
 }
