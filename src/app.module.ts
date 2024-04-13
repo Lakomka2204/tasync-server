@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ThrottlerModule, minutes } from '@nestjs/throttler';
+import { ThrottlerGuard, ThrottlerModule, minutes } from '@nestjs/throttler';
 import { AccountModule } from './account/account.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -8,6 +8,8 @@ import { FolderController } from './folder/folder.controller';
 import { FolderService } from './folder/folder.service';
 import { FolderModule } from './folder/folder.module';
 import { Folder } from './folder/folder.entity';
+import { APP_GUARD } from '@nestjs/core';
+import { ProxyThrottlerGuard } from './proxy-throttler.guard';
 
 @Module({
     imports: [
@@ -34,6 +36,12 @@ import { Folder } from './folder/folder.entity';
         AccountModule,
         FolderModule,
     ],
-    exports: [TypeOrmModule]
+    exports: [TypeOrmModule],
+    providers:[
+        {
+            provide: APP_GUARD,
+            useClass: ProxyThrottlerGuard
+        }
+    ]
 })
 export class AppModule { }

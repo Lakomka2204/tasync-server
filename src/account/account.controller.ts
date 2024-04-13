@@ -8,6 +8,7 @@ import {
     HttpCode,
     MethodNotAllowedException,
     NotFoundException,
+    NotImplementedException,
     ParseEnumPipe,
     Patch,
     Post,
@@ -25,16 +26,13 @@ import { Request, Response } from 'express';
 import { plainToClass } from 'class-transformer';
 import { CreateAccountDto } from './dto/create-account.dto';
 import { AuthAccountDto } from './dto/auth-account.dto';
-import { Throttle, ThrottlerGuard, minutes } from '@nestjs/throttler';
+import { Throttle, minutes } from '@nestjs/throttler';
 import { UpdateAccountDto } from './dto/update-account.dto';
-import { isInt, isNumber, maxLength, minLength } from 'class-validator';
-import { totp } from 'speakeasy';
+import { isInt, isNumber } from 'class-validator';
 import { Account } from './account.entity';
 import { DelAccountDto } from './dto/delete-account.dto';
-import { ProxyThrottlerGuard } from 'src/proxy-throttler.guard';
 
 @Controller('account')
-@UseGuards(ProxyThrottlerGuard)
 export class AccountController {
     constructor(private readonly accountService: AccountService) { }
     @UseGuards(AccountGuard)
@@ -43,12 +41,14 @@ export class AccountController {
         const account: Account = JSON.parse(req.headers.authorization);
         return plainToClass(AccountInfoDto, account);
     }
+
     @UseGuards(AccountGuard)
     @Patch()
+    @Throttle({ default: { ttl: minutes(3), limit: 1 } })
+    @HttpCode(200)
     async updateAccount(
         @Req() req: Request,
         @Body() updateAccountBody: UpdateAccountDto,
-        @Res() res: Response,
     ) {
         const account: Account = JSON.parse(req.headers.authorization);
         const updated = await this.accountService.updateAccount(
@@ -60,11 +60,13 @@ export class AccountController {
                 'User with specified email already exists.',
             );
         const newToken = await this.accountService.createJwtToken(account.id);
-        res.status(updated > 0 ? 200 : 304).json({ new_access_token: newToken });
+        return { new_access_token: newToken }
     }
+
     @Patch("/delete")
     @UseGuards(AccountGuard)
     @HttpCode(200)
+    @Throttle({ default: { ttl: minutes(3), limit: 1 } })
     async deleteAccount(@Req() req: Request, @Body() delAccountBody: DelAccountDto) {
         const account: Account = JSON.parse(req.headers.authorization);
         if (!await this.accountService.compare(delAccountBody.password, account.password))
@@ -80,6 +82,7 @@ export class AccountController {
 
     @HttpCode(200)
     @Post()
+    @Throttle({ default: { ttl: minutes(1), limit: 5 } })
     async login(
         @Body() accountBody: AuthAccountDto,
         @Res({ passthrough: true }) res: Response
@@ -95,6 +98,7 @@ export class AccountController {
         }
         return { access_token: token };
     }
+
     @Throttle({ default: { ttl: minutes(1), limit: 3 } })
     @Put()
     async register(
@@ -108,9 +112,11 @@ export class AccountController {
         const [token] = await this.accountService.getAuthToken(accountBody);
         return { access_token: token };
     }
+
     @Delete('/2fa')
     @HttpCode(200)
     @UseGuards(AccountGuard)
+    @Throttle({ default: { ttl: minutes(3), limit: 1 } })
     async removeTwoFa(
         @Req() req: Request,
         @Query('code') totpCode: string,
@@ -129,7 +135,7 @@ export class AccountController {
             access_token: await this.accountService.createJwtToken(account.id),
         };
     }
-    @Throttle({ default: { ttl: minutes(1), limit: 10 } })
+
     @Get('/2fa')
     @HttpCode(200)
     @UseGuards(AccountGuard)
@@ -163,10 +169,12 @@ export class AccountController {
                 throw new BadRequestException("No type.");
         }
     }
+
     @Patch("/restore")
     @HttpCode(200)
     @UseGuards(AccountGuard)
+    @Throttle({ default: { ttl: minutes(1), limit: 3 } })
     async restoreAccount() {
-
+        throw new NotImplementedException();
     }
 }
