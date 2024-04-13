@@ -10,6 +10,8 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { UpdateAccountDto } from "./dto/update-account.dto";
 import * as speakeasy from 'speakeasy';
 import * as QrCode from 'qrcode';
+import { mkdir } from "fs/promises";
+import { join } from "path";
 @Injectable()
 export class AccountService {
     constructor(
@@ -38,6 +40,8 @@ export class AccountService {
             password: await this.hashPassword(account.password)
         });
         await this.accountRepo.save(dbAccount);
+        const userPath = join(this.config.getOrThrow("TMP_FILE_STORAGE"),dbAccount.username);
+        await mkdir(userPath);
         return dbAccount;
     }
     async updateAccount(id: number, accountInfo: UpdateAccountDto): Promise<number> {
