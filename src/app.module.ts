@@ -15,7 +15,7 @@ import { Folder } from './folder/folder.entity';
         ThrottlerModule.forRoot([
             {
                 ttl: minutes(2),
-                limit: 50,
+                limit: 30,
             }]),
         TypeOrmModule.forRootAsync({
             imports: [ConfigModule],
