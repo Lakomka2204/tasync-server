@@ -1,11 +1,9 @@
 import { Module } from '@nestjs/common';
-import { ThrottlerGuard, ThrottlerModule, minutes } from '@nestjs/throttler';
+import { ThrottlerModule, minutes } from '@nestjs/throttler';
 import { AccountModule } from './account/account.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Account } from './account/account.entity';
-import { FolderController } from './folder/folder.controller';
-import { FolderService } from './folder/folder.service';
 import { FolderModule } from './folder/folder.module';
 import { Folder } from './folder/folder.entity';
 import { APP_GUARD } from '@nestjs/core';
