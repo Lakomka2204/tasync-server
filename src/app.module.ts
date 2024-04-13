@@ -8,15 +8,27 @@ import { FolderModule } from './folder/folder.module';
 import { Folder } from './folder/folder.entity';
 import { APP_GUARD } from '@nestjs/core';
 import { ProxyThrottlerGuard } from './proxy-throttler.guard';
+import { BullModule } from '@nestjs/bull';
+import { ArchiveModule } from './archive/archive.module';
 
 @Module({
     imports: [
-        ConfigModule.forRoot({isGlobal:true}),
+        ConfigModule.forRoot({ isGlobal: true }),
         ThrottlerModule.forRoot([
             {
                 ttl: minutes(2),
                 limit: 30,
             }]),
+        BullModule.forRootAsync({
+            imports: [ConfigModule],
+            inject: [ConfigService],
+            useFactory: (config: ConfigService) => ({
+                redis: {
+                    host: config.getOrThrow("REDIS_HOST"),
+                    port: config.getOrThrow("REDIS_PORT")
+                }
+            })
+        }),
         TypeOrmModule.forRootAsync({
             imports: [ConfigModule],
             inject: [ConfigService],
@@ -28,14 +40,15 @@ import { ProxyThrottlerGuard } from './proxy-throttler.guard';
                 database: config.getOrThrow('DB_DATABASE'),
                 schema: config.getOrThrow('DB_SCHEMA'),
                 synchronize: config.get('NODE_ENV') == 'development',
-                entities: [Account,Folder],
+                entities: [Account, Folder],
             }),
         }),
         AccountModule,
         FolderModule,
+        ArchiveModule
     ],
     exports: [TypeOrmModule],
-    providers:[
+    providers: [
         {
             provide: APP_GUARD,
             useClass: ProxyThrottlerGuard

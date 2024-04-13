@@ -4,9 +4,10 @@ import { Folder } from './folder.entity';
 import { FolderService } from './folder.service';
 import { FolderController } from './folder.controller';
 import { AccountModule } from 'src/account/account.module';
+import { ArchiveModule } from 'src/archive/archive.module';
 
 @Module({
-    imports:[TypeOrmModule.forFeature([Folder]),AccountModule],
+    imports:[TypeOrmModule.forFeature([Folder]),AccountModule,ArchiveModule],
     providers:[FolderService],
     controllers:[FolderController],
     exports:[TypeOrmModule]

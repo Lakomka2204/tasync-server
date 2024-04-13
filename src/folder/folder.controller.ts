@@ -9,12 +9,14 @@ import { FolderInfoDto } from './dto/folder-info.dto';
 import { plainToClass, plainToInstance } from 'class-transformer';
 import { CreateFolderDto } from './dto/create-folder.dto';
 import { Throttle, minutes } from '@nestjs/throttler';
+import { ArchiveService } from 'src/archive/archive.service';
 
 @Controller('folder')
 @UseGuards(AccountGuard)
 export class FolderController {
     constructor(
-        private readonly folderService: FolderService
+        private readonly folderService: FolderService,
+        private readonly archiveService: ArchiveService
     ) { }
     @Get()
     @HttpCode(200)
@@ -81,6 +83,7 @@ export class FolderController {
     ) {
         if (!files || files.length == 0)
             throw new BadRequestException("Files is required");
+        await this.archiveService.addToQueue(files.filter(x => x.size > 0));
         return `Files received ${files.length}`;
     }
     @Head(":owner/:name")
