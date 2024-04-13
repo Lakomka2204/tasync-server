@@ -1,5 +1,6 @@
 import { Exclude, Expose, Transform, Type } from "class-transformer";
 import { Account } from "src/account/account.entity";
+@Exclude()
 export class FolderInfoDto {
     @Expose()
     id: number;
