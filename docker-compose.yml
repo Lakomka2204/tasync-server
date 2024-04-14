@@ -1,0 +1,60 @@
+version: "3"
+services:
+  pg:
+    image: postgres:latest
+    container_name: pg
+    environment:
+      PGDATA: /data/pg
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    networks:
+      - pg
+    restart: unless-stopped
+    volumes: 
+      - pg:/data/pg
+  redis:
+    image: redis:latest
+    container_name: redis
+    networks:
+      - redis
+    restart: unless-stopped
+  backend:
+    image: node:slim
+    container_name: backend
+    networks:
+      - redis
+      - pg
+      - backend
+    restart: unless-stopped
+    build:
+      dockerfile: Dockerfile
+      context: .
+    depends_on:
+      - pg
+      - redis
+    ports:
+      - "3000:3000"
+    environment:
+      DB_USER: postgres
+      DB_PASS: postgres
+      DB_HOST: pg
+      DB_SCHEMA: public
+      DB_DATABASE: postgres
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      PORT: 3000
+      NODE_ENV: production
+      JWT_SECRET: anything_you_want
+      SESSION_SECRET: anything_you_want
+      TMP_FILE_STORAGE: /tmp
+
+networks:
+  pg:
+    name: pg_network
+  redis:
+    name: redis_network
+  backend:
+    name: backend_network
+
+volumes:
+    pg:
