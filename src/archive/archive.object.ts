@@ -4,5 +4,5 @@ export type ArchiveItem = {
 }
 export class ArchiveJob {
     items: ArchiveItem[];
-    folderId: number;
+    location: string;
 }
