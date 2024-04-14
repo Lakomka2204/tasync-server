@@ -1,4 +1,4 @@
 export class BaseFolderDto {
-    ownerFolderName: string;
+    ownerId: number;
     folderName: string;
 }
