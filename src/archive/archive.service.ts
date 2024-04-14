@@ -1,6 +1,6 @@
 
 import { Injectable } from '@nestjs/common';
-import { Queue } from 'bull';
+import Bull, { Queue } from 'bull';
 import { InjectQueue } from '@nestjs/bull';
 import { ArchiveItem, ArchiveJob } from './archive.object';
 import { writeFile } from 'fs/promises';
@@ -15,14 +15,22 @@ export class ArchiveService {
         var random_number = timestamp + random;
         return random_number;
     }
-    async addToQueue(files: Express.Multer.File[]) {
+    async getQueueJob(id: string) {
+        return await this.archiveQueue.getJob(id);
+    }
+    async addToQueue(id:string,files: Express.Multer.File[]) {
         const locations: ArchiveItem[] = []
         for (const file of files) {
             const location = join('/tmp', this.getRandomFileName());
             locations.push({ filename: file.originalname, location });
             await writeFile(location, file.buffer);
         }
-        return await this.archiveQueue.add('archive', {items:locations,folderId:4});
+        return await this.archiveQueue.add('archive', {
+            items:locations,
+            location:`${id}.zip`
+        },{
+            jobId:id
+        });
     }
 
 }
