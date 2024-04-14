@@ -2,31 +2,22 @@ import { Injectable } from '@nestjs/common';
 import { Folder } from './folder.entity';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
-import { CreateFolderDto } from './dto/create-folder.dto';
 import { Account } from 'src/account/account.entity';
-import { mkdir, readFile, writeFile } from 'fs/promises';
-import { ConfigService } from '@nestjs/config';
-import { join } from 'path';
-import { SnapshotFolderDto } from './dto/snapshot-folder.dto';
 import { BaseFolderDto } from './dto/base-folder.dto';
+import { CommitFolderDto } from './dto/commit-folder.dto';
 
 @Injectable()
 export class FolderService {
     constructor(
         @InjectRepository(Folder)
-        private readonly folderRepo: Repository<Folder>,
-        private readonly config: ConfigService
+        private readonly folderRepo: Repository<Folder>
     ) { }
-    async canAccessFolder(ownerId: number, { ownerFolderName, folderName }: BaseFolderDto): Promise<boolean> {
-        const folder = await this.getFolderByName({ ownerFolderName, folderName });
-        return folder.isPublic || ownerId == folder.owner.id;
-    }
-    async getFolderByName({ folderName, ownerFolderName }: BaseFolderDto): Promise<Folder | null> {
+    async getFolderByName({ folderName, ownerId }: BaseFolderDto): Promise<Folder | null> {
         return await this.folderRepo.findOne({
             where: {
                 name: folderName,
                 owner: {
-                    username: ownerFolderName
+                    id: ownerId
                 }
             },
             relations: ['owner'],
@@ -49,33 +40,31 @@ export class FolderService {
             }
         });
     }
-    async createFolder(owner: Account, { name, isPublic }: CreateFolderDto): Promise<boolean> {
-        const dbFolder = await this.folderRepo.findOne({ where: { name, owner: { id: owner.id } } });
+    async createFolder(folder: BaseFolderDto): Promise<boolean> {
+        const dbFolder = await this.getFolderByName(folder);
         if (dbFolder)
             return false;
-        const folder = this.folderRepo.create({ name, owner: { id: owner.id }, isPublic });
-        const newFolderPath = join(this.config.getOrThrow('TMP_FILE_STORAGE'), owner.username, name);
-        await mkdir(newFolderPath)
-        return !!(await this.folderRepo.save(folder));
+        const createdFolder = this.folderRepo.create({ name: folder.folderName, owner: { id: folder.ownerId }});
+        return !!(await this.folderRepo.save(createdFolder));
     }
-    async deleteFolder(owner: Account, folderName: string): Promise<boolean> {
-        const folder = await this.folderRepo.findOne({ where: { name: folderName, owner: { id: owner.id } } });
-        if (!folder)
+    async deleteFolder(folder: BaseFolderDto): Promise<boolean> {
+        const dbFolder = await this.getFolderByName(folder);
+        if (!dbFolder)
             return false;
-        return (await this.folderRepo.softDelete({ id: folder.id })).affected > 0;
+        return (await this.folderRepo.softDelete({ id: dbFolder.id })).affected > 0;
     }
-    async createSnapshot(snapshot: SnapshotFolderDto, archive: Buffer, info: Buffer) {
-        const folder = await this.getFolderByName(snapshot);
-        folder.snapshots.push(snapshot.snapshot);
-        const folderName = join(this.config.getOrThrow("TMP_FILE_STORAGE"), snapshot.ownerFolderName, snapshot.folderName);
-        //! i forgot that i will be creating archives on server side...
-        const archiveName = join(folderName, `${snapshot.snapshot}.zip`);
-        const infoName = join(folderName, `${snapshot.snapshot}.tasync`);
-        await writeFile(archiveName, archive);
-        await writeFile(infoName, info);
-        await this.folderRepo.save(folder);
+    async createCommit(folder: CommitFolderDto): Promise<Folder> {
+        const dbFolder = await this.getFolderByName(folder);
+        dbFolder.commits.push(folder.commit);
+        return await this.folderRepo.save(dbFolder);
     }
-    async getSnapshotArchive(snapshot: SnapshotFolderDto) {
-
+    async deleteCommit(folder: CommitFolderDto): Promise<boolean> {
+        const dbFolder = await this.getFolderByName(folder);
+        if (!dbFolder)
+            return false;
+        return (await this.folderRepo.softDelete({id:dbFolder.id})).affected > 0;
+    }
+    composeUniqueId(folder: CommitFolderDto): string {
+        return `${folder.ownerId}-${folder.folderName}-${folder.commit}`;
     }
 }
