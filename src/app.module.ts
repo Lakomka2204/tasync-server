@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ThrottlerModule, minutes } from '@nestjs/throttler';
+import { ThrottlerModule, minutes, seconds } from '@nestjs/throttler';
 import { AccountModule } from './account/account.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -10,6 +10,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ProxyThrottlerGuard } from './proxy-throttler.guard';
 import { BullModule } from '@nestjs/bull';
 import { ArchiveModule } from './archive/archive.module';
+import { FsModule } from './fs/fs.module';
 
 @Module({
     imports: [
@@ -26,6 +27,12 @@ import { ArchiveModule } from './archive/archive.module';
                 redis: {
                     host: config.getOrThrow("REDIS_HOST"),
                     port: config.getOrThrow("REDIS_PORT")
+                },
+                defaultJobOptions: {
+                    removeOnComplete: true,
+                    attempts:5,
+                    removeOnFail:false,
+                    timeout:seconds(30)
                 }
             })
         }),
@@ -45,7 +52,8 @@ import { ArchiveModule } from './archive/archive.module';
         }),
         AccountModule,
         FolderModule,
-        ArchiveModule
+        ArchiveModule,
+        FsModule
     ],
     exports: [TypeOrmModule],
     providers: [
