@@ -4,6 +4,4 @@ export class CreateFolderDto {
     @IsString()
     @IsAlphanumeric()
     name: string;
-    @IsBoolean()
-    isPublic?:boolean = false;
 }

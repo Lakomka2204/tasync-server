@@ -10,8 +10,6 @@ export class Folder {
     @ManyToOne(() => Account,account => account.folders,{onDelete:'CASCADE'})
     @JoinColumn({name:"owner_id"})
     owner: Account;
-    @Column({name:"is_public",default:false,type:'bool'})
-    isPublic: boolean;
     @CreateDateColumn({ name: 'created_at' })
     createdAt: Date;
     @Exclude()
@@ -21,5 +19,5 @@ export class Folder {
     @DeleteDateColumn({ name: 'deleted_at' })
     deletedAt: Date;
     @Column({array:true,type:'int',default:[]})
-    snapshots: number[];
+    commits: number[];
 }
