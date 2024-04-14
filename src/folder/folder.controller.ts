@@ -1,22 +1,23 @@
-import { BadRequestException, Body, Controller, Delete, FileTypeValidator, Get, Head, HttpCode, MaxFileSizeValidator, NotFoundException, Param, ParseFilePipe, Post, Put, Req, StreamableFile, UploadedFile, UploadedFiles, UseGuards, UseInterceptors } from '@nestjs/common';
-import { AnyFilesInterceptor, FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
+import { BadRequestException, Controller, Delete, Get, HttpCode, MaxFileSizeValidator, NotFoundException, Param, ParseFilePipe, Put, Query, Req, ServiceUnavailableException, StreamableFile, UnprocessableEntityException, UploadedFiles, UseGuards, UseInterceptors } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import { Request } from 'express';
-import { join } from 'path';
 import { Account } from 'src/account/account.entity';
 import { AccountGuard } from 'src/account/account.guard';
 import { FolderService } from './folder.service';
 import { FolderInfoDto } from './dto/folder-info.dto';
 import { plainToClass, plainToInstance } from 'class-transformer';
-import { CreateFolderDto } from './dto/create-folder.dto';
 import { Throttle, minutes } from '@nestjs/throttler';
 import { ArchiveService } from 'src/archive/archive.service';
+import { isAlphanumeric, isString } from 'class-validator';
+import { FsService } from 'src/fs/fs.service';
 
 @Controller('folder')
 @UseGuards(AccountGuard)
 export class FolderController {
     constructor(
         private readonly folderService: FolderService,
-        private readonly archiveService: ArchiveService
+        private readonly archiveService: ArchiveService,
+        private readonly fsService: FsService
     ) { }
     @Get()
     @HttpCode(200)
@@ -26,31 +27,30 @@ export class FolderController {
         const account: Account = JSON.parse(req.headers.authorization);
         return plainToInstance(FolderInfoDto, await this.folderService.getFolders(account));
     }
-    @Get(":owner/:name")
+    @Get(":name")
     @HttpCode(200)
     async getFolderInfo(
         @Req() req: Request,
-        @Param('owner') ownerFolderName: string,
         @Param('name') folderName: string,
     ): Promise<FolderInfoDto> {
-        const folder = await this.folderService.getFolderByName({ownerFolderName, folderName});
-        if (!folder)
-            throw new NotFoundException("Folder is not found");
         const account: Account = JSON.parse(req.headers.authorization);
-        if (!(await this.folderService.canAccessFolder(account.id, {ownerFolderName, folderName})))
+        const folder = await this.folderService.getFolderByName({ ownerId: account.id, folderName });
+        if (!folder)
             throw new NotFoundException("Folder is not found");
         return plainToClass(FolderInfoDto, folder);
     }
 
-    @Put()
+    @Put(':name')
     @HttpCode(201)
     @Throttle({ default: { ttl: minutes(2), limit: 2 } })
     async createFolder(
         @Req() req: Request,
-        @Body() createFolderBody: CreateFolderDto
+        @Param("name") folderName: string
     ) {
         const account: Account = JSON.parse(req.headers.authorization);
-        const folder = await this.folderService.createFolder(account, createFolderBody);
+        if (!(isString(folderName) && isAlphanumeric(folderName)))
+            throw new BadRequestException("Name should be alphanumerical");
+        const folder = await this.folderService.createFolder({ ownerId: account.id, folderName });
         if (!folder) throw new BadRequestException(`Folder with specified name already exists`);
     }
 
@@ -61,18 +61,20 @@ export class FolderController {
         @Param('name') folderName: string
     ) {
         const account: Account = JSON.parse(req.headers.authorization);
-        const isDeleted = await this.folderService.deleteFolder(account, folderName);
+        const isDeleted = await this.folderService.deleteFolder({ ownerId: account.id, folderName });
         if (!isDeleted)
             throw new NotFoundException("Folder is not found");
     }
 
-    @Put(":name")
+    @Put(":name/:commit")
     @HttpCode(201)
     @Throttle({ default: { ttl: minutes(1), limit: 5 } })
     @UseInterceptors(FilesInterceptor('file'))
-    async uploadArchive(
+    async createSnapshot(
         @Req() req: Request,
         @Param("name") folderName: string,
+        @Param("commit") commit: number,
+        @Query("force") forceRewrite: string,
         @UploadedFiles(
             new ParseFilePipe({
                 validators: [
@@ -81,21 +83,74 @@ export class FolderController {
             })
         ) files: Express.Multer.File[],
     ) {
+        if (isNaN(parseInt(commit?.toString())))
+            throw new BadRequestException("Commit should be number");
         if (!files || files.length == 0)
             throw new BadRequestException("Files is required");
-        await this.archiveService.addToQueue(files.filter(x => x.size > 0));
+        const account: Account = JSON.parse(req.headers.authorization);
+        const folder = await this.folderService.getFolderByName({ folderName, ownerId: account.id })
+        if (!folder)
+            return new NotFoundException("Folder is not found")
+        const lastCommit = folder.commits[folder.commits.length - 1] ?? 0;
+        if (lastCommit >= commit && forceRewrite !== "true")
+            throw new BadRequestException(`This commit is ${lastCommit - commit} second(s) behind`);
+
+        const uniqueName = this.folderService.composeUniqueId({ ownerId: account.id, folderName: folder.id.toString(), commit });
+        await this.folderService.createCommit({ ownerId: account.id, folderName, commit: commit });
+        await this.archiveService.addToQueue(uniqueName, files.filter(x => x.size > 0));
         return `Files received ${files.length}`;
     }
-    @Head(":owner/:name")
+
+    @Get(":name/:commit")
     @HttpCode(200)
-    async getInfoFile(
+    @Throttle({ default: { ttl: minutes(3), limit: 20 } })
+    async getSnapshot(
         @Req() req: Request,
-        @Param('owner') ownerFolderName: string,
-        @Param("name") folderName: string
+        @Param("name") folderName: string,
+        @Param("commit") commit: string,
     ) {
         const account: Account = JSON.parse(req.headers.authorization);
-        if (!(await this.folderService.canAccessFolder(account.id,{ownerFolderName,folderName})))
-            throw new NotFoundException("Folder is not found");
-
+        const folder = await this.folderService.getFolderByName({ folderName, ownerId: account.id });
+        if (commit == "last")
+            commit = folder.commits[folder.commits.length - 1].toString();
+        if (!folder.commits.includes(+commit))
+            throw new NotFoundException("Commit is not found");
+        const uniqueFileName = this.folderService.composeUniqueId({
+            ownerId: account.id,
+            folderName: folder.id.toString(),
+            commit: +commit
+        });
+        const buffer = await this.fsService.getFile(uniqueFileName + ".zip");
+        if (!buffer) {
+            const job = await this.archiveService.getQueueJob(uniqueFileName);
+            const state = await job.getState();
+            switch (state) {
+                case "active":
+                    throw new ServiceUnavailableException("Your files are being processed right now");
+                case 'waiting':
+                    throw new ServiceUnavailableException("Your files are in queue right now");
+                default:
+                    throw new UnprocessableEntityException("Your files are unaccessible right now",);
+            }
+        }
+        return new StreamableFile(buffer, { disposition: 'attachment', length: buffer.length, type: 'application/zip' });
     }
+    @Delete(":name/:commit")
+    @HttpCode(200)
+    @Throttle({ default: { ttl: minutes(1), limit: 20 } })
+    async deleteSnapshot(
+        @Req() req: Request,
+        @Param("name") folderName: string,
+        @Param("commit") commit: string
+    ) {
+        const account: Account = JSON.parse(req.headers.authorization);
+        const isDeleted = await this.folderService.deleteCommit({
+            ownerId: account.id,
+            folderName,
+            commit: +commit
+        });
+        if (!isDeleted)
+            throw new NotFoundException("Folder is not found")
+    }
+
 }
