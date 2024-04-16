@@ -46,8 +46,8 @@ import { FsModule } from './fs/fs.module';
                 password: config.getOrThrow('DB_PASS'),
                 database: config.getOrThrow('DB_DATABASE'),
                 schema: config.getOrThrow('DB_SCHEMA'),
-                synchronize: config.get('NODE_ENV') == 'development',
-                entities: [Account, Folder],
+                synchronize: config.get('NODE_ENV') != 'production',
+                autoLoadEntities: true
             }),
         }),
         AccountModule,
