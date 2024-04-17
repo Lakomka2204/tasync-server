@@ -111,8 +111,8 @@ export class FolderController {
     ) {
         const account: Account = JSON.parse(req.headers.authorization);
         const folder = await this.folderService.getFolderByName({ folderName, ownerId: account.id });
-        if (commit == "last")
-            commit = folder.commits[folder.commits.length - 1].toString();
+        if (commit == "last" && commit.length > 0)
+            commit = folder.commits[folder.commits.length - 1]?.toString();
         if (!folder.commits.includes(+commit))
             throw new NotFoundException("Commit is not found");
         const uniqueFileName = this.folderService.composeUniqueId({
