@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, Delete, Get, HttpCode, MaxFileSizeValidator, NotFoundException, Param, ParseFilePipe, Put, Query, Req, Res, ServiceUnavailableException, StreamableFile, UnprocessableEntityException, UploadedFiles, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Controller, Delete, Get, Headers, HttpCode, MaxFileSizeValidator, NotFoundException, Param, ParseFilePipe, Put, Query, Req, Res, ServiceUnavailableException, StreamableFile, UnprocessableEntityException, UploadedFiles, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
 import { Request, Response } from 'express';
 import { Account } from 'src/account/account.entity';
@@ -46,7 +46,7 @@ export class FolderController {
     async createFolder(
         @Req() req: Request,
         @Param("name") folderName: string
-    ):Promise<void> {
+    ): Promise<void> {
         const account: Account = JSON.parse(req.headers.authorization);
         if (!(isString(folderName) && isAlphanumeric(folderName)))
             throw new BadRequestException("Name should be alphanumerical");
@@ -59,7 +59,7 @@ export class FolderController {
     async deleteFolder(
         @Req() req: Request,
         @Param('name') folderName: string
-    ):Promise<void> {
+    ): Promise<void> {
         const account: Account = JSON.parse(req.headers.authorization);
         const isDeleted = await this.folderService.deleteFolder({ ownerId: account.id, folderName });
         if (!isDeleted)
@@ -72,6 +72,7 @@ export class FolderController {
     @UseInterceptors(FilesInterceptor('file'))
     async createSnapshot(
         @Req() req: Request,
+        @Headers("Ignore") ignoreFiles: string[],
         @Param("name") folderName: string,
         @Param("commit") commit: string,
         @Query("force") forceRewrite: string,
@@ -83,21 +84,35 @@ export class FolderController {
             })
         ) files: Express.Multer.File[],
     ): Promise<string> {
+        console.log('ignore files', ignoreFiles);
+        // check commit number
         if (isNaN(parseInt(commit?.toString())))
             throw new BadRequestException("Commit should be number");
+        // check files
         if (!files || files.length == 0)
             throw new BadRequestException("Files are required");
+        // get account
         const account: Account = JSON.parse(req.headers.authorization);
+        // get or create folder
         let folder = await this.folderService.getFolderByName({ folderName, ownerId: account.id })
         if (!folder)
-            folder = await this.folderService.createFolder({ownerId:account.id, folderName});
+            folder = await this.folderService.createFolder({ ownerId: account.id, folderName });
+        // check commit
         const lastCommit = folder.commits[folder.commits.length - 1];
         if (folder.commits.length > 0 && lastCommit != commit && forceRewrite !== "true")
             throw new BadRequestException(`This commit is behind the latest`);
-        const newCommit = Math.floor(Date.now()/1000).toString();
+        // generate new commit
+        const newCommit = Math.floor(Date.now() / 1000).toString();
+        // generate name for archive
         const uniqueName = this.folderService.composeUniqueId({ ownerId: account.id, folderName: folder.id.toString(), commit: newCommit });
+        // create commit in db
         await this.folderService.createCommit({ ownerId: account.id, folderName, commit: newCommit });
+        // add archiving into queue
         await this.archiveService.addToQueue(uniqueName, files.filter(x => x.size > 0));
+        // update ignored files if they different
+        if (!folder.commits.every(x => ignoreFiles.includes(x)))
+            await this.folderService.updateIgnoredFiles(folder.id, ignoreFiles);
+        // return time of new commit
         return newCommit;
     }
 
@@ -121,7 +136,7 @@ export class FolderController {
             folderName: folder.id.toString(),
             commit
         });
-        const buffer = await this.fsService.getFile(uniqueFileName + ".zip");
+        const buffer = await this.fsService.getFile(uniqueFileName);
         if (!buffer) {
             const job = await this.archiveService.getQueueJob(uniqueFileName);
             const state = await job.getState();
@@ -134,7 +149,8 @@ export class FolderController {
                     throw new UnprocessableEntityException("Your files are unaccessible right now",);
             }
         }
-        res.header("Commit",commit)
+        res.header("Commit", commit)
+        res.header("Ignore", folder.ignoreFiles);
         return new StreamableFile(buffer, { disposition: 'attachment', length: buffer.length, type: 'application/zip' });
     }
     @Delete(":name/:commit")
@@ -144,7 +160,7 @@ export class FolderController {
         @Req() req: Request,
         @Param("name") folderName: string,
         @Param("commit") commit: string
-    ):Promise<void> {
+    ): Promise<void> {
         const account: Account = JSON.parse(req.headers.authorization);
         const isDeleted = await this.folderService.deleteCommit({
             ownerId: account.id,
