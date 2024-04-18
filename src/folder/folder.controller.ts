@@ -1,6 +1,6 @@
-import { BadRequestException, Controller, Delete, Get, HttpCode, MaxFileSizeValidator, NotFoundException, Param, ParseFilePipe, Put, Query, Req, ServiceUnavailableException, StreamableFile, UnprocessableEntityException, UploadedFiles, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Controller, Delete, Get, HttpCode, MaxFileSizeValidator, NotFoundException, Param, ParseFilePipe, Put, Query, Req, Res, ServiceUnavailableException, StreamableFile, UnprocessableEntityException, UploadedFiles, UseGuards, UseInterceptors } from '@nestjs/common';
 import { FilesInterceptor } from '@nestjs/platform-express';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { Account } from 'src/account/account.entity';
 import { AccountGuard } from 'src/account/account.guard';
 import { FolderService } from './folder.service';
@@ -46,7 +46,7 @@ export class FolderController {
     async createFolder(
         @Req() req: Request,
         @Param("name") folderName: string
-    ) {
+    ):Promise<void> {
         const account: Account = JSON.parse(req.headers.authorization);
         if (!(isString(folderName) && isAlphanumeric(folderName)))
             throw new BadRequestException("Name should be alphanumerical");
@@ -59,7 +59,7 @@ export class FolderController {
     async deleteFolder(
         @Req() req: Request,
         @Param('name') folderName: string
-    ) {
+    ):Promise<void> {
         const account: Account = JSON.parse(req.headers.authorization);
         const isDeleted = await this.folderService.deleteFolder({ ownerId: account.id, folderName });
         if (!isDeleted)
@@ -82,23 +82,23 @@ export class FolderController {
                 ]
             })
         ) files: Express.Multer.File[],
-    ) {
+    ): Promise<number> {
         if (isNaN(parseInt(commit?.toString())))
             throw new BadRequestException("Commit should be number");
         if (!files || files.length == 0)
             throw new BadRequestException("Files is required");
         const account: Account = JSON.parse(req.headers.authorization);
-        const folder = await this.folderService.getFolderByName({ folderName, ownerId: account.id })
+        let folder = await this.folderService.getFolderByName({ folderName, ownerId: account.id })
         if (!folder)
-            return new NotFoundException("Folder is not found")
-        const lastCommit = folder.commits[folder.commits.length - 1] ?? 0;
-        if (lastCommit >= commit && forceRewrite !== "true")
+            folder = await this.folderService.createFolder({ownerId:account.id, folderName});
+        const lastCommit = folder.commits[folder.commits.length - 1];
+        if (folder.commits.length > 0 && lastCommit != commit && forceRewrite !== "true")
             throw new BadRequestException(`This commit is ${lastCommit - commit} second(s) behind`);
-
-        const uniqueName = this.folderService.composeUniqueId({ ownerId: account.id, folderName: folder.id.toString(), commit });
-        await this.folderService.createCommit({ ownerId: account.id, folderName, commit: commit });
+        const newCommit = Date.now()/1000;
+        const uniqueName = this.folderService.composeUniqueId({ ownerId: account.id, folderName: folder.id.toString(), commit: newCommit });
+        await this.folderService.createCommit({ ownerId: account.id, folderName, commit: newCommit });
         await this.archiveService.addToQueue(uniqueName, files.filter(x => x.size > 0));
-        return `Files received ${files.length}`;
+        return newCommit;
     }
 
     @Get(":name/:commit")
@@ -108,7 +108,8 @@ export class FolderController {
         @Req() req: Request,
         @Param("name") folderName: string,
         @Param("commit") commit: string,
-    ) {
+        @Res({ passthrough: true }) res: Response
+    ): Promise<StreamableFile> {
         const account: Account = JSON.parse(req.headers.authorization);
         const folder = await this.folderService.getFolderByName({ folderName, ownerId: account.id });
         if (commit == "last" && commit.length > 0)
@@ -133,6 +134,7 @@ export class FolderController {
                     throw new UnprocessableEntityException("Your files are unaccessible right now",);
             }
         }
+        res.header("Commit",commit)
         return new StreamableFile(buffer, { disposition: 'attachment', length: buffer.length, type: 'application/zip' });
     }
     @Delete(":name/:commit")
@@ -142,7 +144,7 @@ export class FolderController {
         @Req() req: Request,
         @Param("name") folderName: string,
         @Param("commit") commit: string
-    ) {
+    ):Promise<void> {
         const account: Account = JSON.parse(req.headers.authorization);
         const isDeleted = await this.folderService.deleteCommit({
             ownerId: account.id,
