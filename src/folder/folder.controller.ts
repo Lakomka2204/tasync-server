@@ -86,13 +86,13 @@ export class FolderController {
         if (isNaN(parseInt(commit?.toString())))
             throw new BadRequestException("Commit should be number");
         if (!files || files.length == 0)
-            throw new BadRequestException("Files is required");
+            throw new BadRequestException("Files are required");
         const account: Account = JSON.parse(req.headers.authorization);
         let folder = await this.folderService.getFolderByName({ folderName, ownerId: account.id })
         if (!folder)
             folder = await this.folderService.createFolder({ownerId:account.id, folderName});
         const lastCommit = folder.commits[folder.commits.length - 1];
-        if (folder.commits.length > 0 && (lastCommit != commit || forceRewrite !== "true"))
+        if (folder.commits.length > 0 && lastCommit != commit && forceRewrite !== "true")
             throw new BadRequestException(`This commit is behind the latest`);
         const newCommit = Math.floor(Date.now()/1000).toString();
         const uniqueName = this.folderService.composeUniqueId({ ownerId: account.id, folderName: folder.id.toString(), commit: newCommit });
