@@ -73,7 +73,7 @@ export class FolderController {
     async createSnapshot(
         @Req() req: Request,
         @Param("name") folderName: string,
-        @Param("commit") commit: number,
+        @Param("commit") commit: string,
         @Query("force") forceRewrite: string,
         @UploadedFiles(
             new ParseFilePipe({
@@ -82,7 +82,7 @@ export class FolderController {
                 ]
             })
         ) files: Express.Multer.File[],
-    ): Promise<number> {
+    ): Promise<string> {
         if (isNaN(parseInt(commit?.toString())))
             throw new BadRequestException("Commit should be number");
         if (!files || files.length == 0)
@@ -92,9 +92,9 @@ export class FolderController {
         if (!folder)
             folder = await this.folderService.createFolder({ownerId:account.id, folderName});
         const lastCommit = folder.commits[folder.commits.length - 1];
-        if (folder.commits.length > 0 && lastCommit != commit && forceRewrite !== "true")
-            throw new BadRequestException(`This commit is ${lastCommit - commit} second(s) behind`);
-        const newCommit = Math.floor(Date.now()/1000);
+        if (folder.commits.length > 0 && (lastCommit != commit || forceRewrite !== "true"))
+            throw new BadRequestException(`This commit is behind the latest`);
+        const newCommit = Math.floor(Date.now()/1000).toString();
         const uniqueName = this.folderService.composeUniqueId({ ownerId: account.id, folderName: folder.id.toString(), commit: newCommit });
         await this.folderService.createCommit({ ownerId: account.id, folderName, commit: newCommit });
         await this.archiveService.addToQueue(uniqueName, files.filter(x => x.size > 0));
@@ -112,14 +112,14 @@ export class FolderController {
     ): Promise<StreamableFile> {
         const account: Account = JSON.parse(req.headers.authorization);
         const folder = await this.folderService.getFolderByName({ folderName, ownerId: account.id });
-        if (commit == "last" && commit.length > 0)
-            commit = folder.commits[folder.commits.length - 1]?.toString();
-        if (!folder.commits.includes(+commit))
+        if (commit == "last" && folder.commits.length > 0)
+            commit = folder.commits[folder.commits.length - 1];
+        if (!folder.commits.includes(commit))
             throw new NotFoundException("Commit is not found");
         const uniqueFileName = this.folderService.composeUniqueId({
             ownerId: account.id,
             folderName: folder.id.toString(),
-            commit: +commit
+            commit
         });
         const buffer = await this.fsService.getFile(uniqueFileName + ".zip");
         if (!buffer) {
@@ -149,7 +149,7 @@ export class FolderController {
         const isDeleted = await this.folderService.deleteCommit({
             ownerId: account.id,
             folderName,
-            commit: +commit
+            commit
         });
         if (!isDeleted)
             throw new NotFoundException("Folder is not found")

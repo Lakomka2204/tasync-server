@@ -19,5 +19,5 @@ export class Folder {
     @DeleteDateColumn({ name: 'deleted_at' })
     deletedAt: Date;
     @Column({array:true,type:'bigint',default:[]})
-    commits: number[];
+    commits: string[];
 }
