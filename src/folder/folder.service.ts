@@ -40,11 +40,11 @@ export class FolderService {
             }
         });
     }
-    async createFolder(folder: BaseFolderDto): Promise<Folder|null> {
+    async createFolder(folder: BaseFolderDto): Promise<Folder | null> {
         const dbFolder = await this.getFolderByName(folder);
         if (dbFolder)
             return null;
-        const createdFolder = this.folderRepo.create({ name: folder.folderName, owner: { id: folder.ownerId }});
+        const createdFolder = this.folderRepo.create({ name: folder.folderName, owner: { id: folder.ownerId } });
         return await this.folderRepo.save(createdFolder);
     }
     async deleteFolder(folder: BaseFolderDto): Promise<boolean> {
@@ -62,7 +62,14 @@ export class FolderService {
         const dbFolder = await this.getFolderByName(folder);
         if (!dbFolder)
             return false;
-        return (await this.folderRepo.softDelete({id:dbFolder.id})).affected > 0;
+        return (await this.folderRepo.softDelete({ id: dbFolder.id })).affected > 0;
+    }
+    async updateIgnoredFiles(folder: BaseFolderDto | number, ignoreFiles: string[]): Promise<boolean> {
+        const dbFolder =
+            folder instanceof BaseFolderDto
+            ? await this.getFolderByName(folder)
+            : await this.folderRepo.findOneBy({id:folder});
+        return (await this.folderRepo.update({ id: dbFolder.id }, { ignoreFiles })).affected > 0;
     }
     composeUniqueId(folder: CommitFolderDto): string {
         return `${folder.ownerId}-${folder.folderName}-${folder.commit}`;
