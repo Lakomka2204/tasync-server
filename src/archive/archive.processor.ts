@@ -12,7 +12,6 @@ import { setTimeout } from 'timers/promises';
 @Processor('archive')
 export class ArchiveProcessor {
     constructor(
-        private readonly config: ConfigService,
         private readonly fsService: FsService
     ){}
     @Process('archive')
