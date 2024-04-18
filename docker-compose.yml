@@ -18,6 +18,8 @@ services:
     networks:
       - redis
     restart: unless-stopped
+    volumes:
+      - redis:/data
   backend:
     image: node:slim
     container_name: backend
@@ -40,7 +42,7 @@ services:
       DB_HOST: pg
       DB_SCHEMA: public
       DB_DATABASE: postgres
-      REDIS_HOST: localhost
+      REDIS_HOST: redis
       REDIS_PORT: 6379
       PORT: 3000
       NODE_ENV: staging
@@ -58,3 +60,6 @@ networks:
 
 volumes:
     pg:
+      name: pg_vol
+    redis:
+      name: redis_vol
