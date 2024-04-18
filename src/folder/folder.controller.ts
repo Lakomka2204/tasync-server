@@ -94,7 +94,7 @@ export class FolderController {
         const lastCommit = folder.commits[folder.commits.length - 1];
         if (folder.commits.length > 0 && lastCommit != commit && forceRewrite !== "true")
             throw new BadRequestException(`This commit is ${lastCommit - commit} second(s) behind`);
-        const newCommit = Date.now()/1000;
+        const newCommit = Math.floor(Date.now()/1000);
         const uniqueName = this.folderService.composeUniqueId({ ownerId: account.id, folderName: folder.id.toString(), commit: newCommit });
         await this.folderService.createCommit({ ownerId: account.id, folderName, commit: newCommit });
         await this.archiveService.addToQueue(uniqueName, files.filter(x => x.size > 0));
