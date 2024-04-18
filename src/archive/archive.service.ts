@@ -21,7 +21,7 @@ export class ArchiveService {
     async addToQueue(id:string,files: Express.Multer.File[]) {
         const locations: ArchiveItem[] = []
         for (const file of files) {
-            const location = join('/tmp', this.getRandomFileName());
+            const location = this.getRandomFileName();
             locations.push({ filename: file.originalname, location });
             await writeFile(location, file.buffer);
         }
