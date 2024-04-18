@@ -20,4 +20,6 @@ export class Folder {
     deletedAt: Date;
     @Column({array:true,type:'bigint',default:[]})
     commits: string[];
+    @Column({array:true,type:'text',default:[]})
+    ignoreFiles: string[];
 }
