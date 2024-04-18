@@ -40,12 +40,12 @@ export class FolderService {
             }
         });
     }
-    async createFolder(folder: BaseFolderDto): Promise<boolean> {
+    async createFolder(folder: BaseFolderDto): Promise<Folder|null> {
         const dbFolder = await this.getFolderByName(folder);
         if (dbFolder)
-            return false;
+            return null;
         const createdFolder = this.folderRepo.create({ name: folder.folderName, owner: { id: folder.ownerId }});
-        return !!(await this.folderRepo.save(createdFolder));
+        return await this.folderRepo.save(createdFolder);
     }
     async deleteFolder(folder: BaseFolderDto): Promise<boolean> {
         const dbFolder = await this.getFolderByName(folder);
