@@ -27,7 +27,7 @@ export class ArchiveService {
         }
         return await this.archiveQueue.add('archive', {
             items:locations,
-            location:`${id}.zip`
+            location:id
         },{
             jobId:id
         });
