@@ -9,8 +9,6 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { UpdateAccountDto } from "./dto/update-account.dto";
 import * as speakeasy from 'speakeasy';
 import * as QrCode from 'qrcode';
-import { mkdir } from "fs/promises";
-import { join } from "path";
 @Injectable()
 export class AccountService {
     constructor(
@@ -38,8 +36,6 @@ export class AccountService {
             password: await this.hashPassword(account.password)
         });
         await this.accountRepo.save(dbAccount);
-        const userPath = join(process.env.TMP_FILE_STORAGE,dbAccount.username);
-        await mkdir(userPath);
         return dbAccount;
     }
     async updateAccount(id: number, accountInfo: UpdateAccountDto): Promise<number> {
@@ -50,7 +46,10 @@ export class AccountService {
         return (await this.accountRepo.update({ id }, accountInfo)).affected;
     }
     genSecret() {
-        return speakeasy.generateSecret({ issuer: "vkclone", name: "VkClone secret key", otpauth_url: true });
+        return speakeasy.generateSecret({
+            issuer: process.env.JWT_ID,
+             name: `${process.env.JWT_ID} secret key`,
+              otpauth_url: true });
     }
     async generate2FaQrCode(secret: speakeasy.GeneratedSecret): Promise<Buffer> {
         return await QrCode.toBuffer(secret.otpauth_url);
@@ -71,8 +70,8 @@ export class AccountService {
             if (!token) return null;
             const jwtClaims = await this.jwtService.verifyAsync(token, {
                 secret: process.env.JWT_SECRET,
-                issuer: 'vkclone',
-                audience: 'vkclone',
+                issuer: process.env.JWT_ID,
+                audience: process.env.JWT_ID,
             });
             if (!jwtClaims.sub) return null;
             const account = await this.getById(jwtClaims.sub);
@@ -86,8 +85,8 @@ export class AccountService {
     }
     async createJwtToken(id: number): Promise<string> {
         return await this.jwtService.signAsync({ sub: id }, {
-            issuer: 'vkclone',
-            audience: 'vkclone',
+            issuer: process.env.JWT_ID,
+            audience: process.env.JWT_ID,
             secret: process.env.JWT_SECRET,
             expiresIn: "30d"
         });
