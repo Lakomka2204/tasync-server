@@ -9,7 +9,6 @@ import {
     MethodNotAllowedException,
     NotFoundException,
     NotImplementedException,
-    ParseEnumPipe,
     Patch,
     Post,
     Put,
@@ -34,7 +33,9 @@ import { DelAccountDto } from './dto/delete-account.dto';
 
 @Controller('account')
 export class AccountController {
-    constructor(private readonly accountService: AccountService) { }
+    constructor(
+        private readonly accountService: AccountService
+    ) { }
     @UseGuards(AccountGuard)
     @Get()
     async getAccountInfo(@Req() req: Request): Promise<AccountInfoDto> {
