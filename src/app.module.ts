@@ -2,14 +2,12 @@ import { Module } from '@nestjs/common';
 import { ThrottlerModule, minutes, seconds } from '@nestjs/throttler';
 import { AccountModule } from './account/account.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Account } from './account/account.entity';
 import { FolderModule } from './folder/folder.module';
-import { Folder } from './folder/folder.entity';
 import { APP_GUARD } from '@nestjs/core';
 import { ProxyThrottlerGuard } from './proxy-throttler.guard';
 import { BullModule } from '@nestjs/bull';
 import { ArchiveModule } from './archive/archive.module';
-import { FsModule } from './fs/fs.module';
+import { FileModule } from './fs/file.module';
 import { dbSource } from './db-source';
 
 @Module({
@@ -35,7 +33,7 @@ import { dbSource } from './db-source';
         AccountModule,
         FolderModule,
         ArchiveModule,
-        FsModule
+        FileModule
     ],
     exports: [TypeOrmModule],
     providers: [

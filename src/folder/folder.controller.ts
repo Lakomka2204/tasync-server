@@ -10,6 +10,7 @@ import { Throttle, minutes } from '@nestjs/throttler';
 import { ArchiveService } from 'src/archive/archive.service';
 import { isAlphanumeric, isString } from 'class-validator';
 import { FsService } from 'src/fs/fs.service';
+import { AwsService } from 'src/fs/aws.service';
 
 @Controller('folder')
 @UseGuards(AccountGuard)
@@ -17,7 +18,7 @@ export class FolderController {
     constructor(
         private readonly folderService: FolderService,
         private readonly archiveService: ArchiveService,
-        private readonly fsService: FsService
+        private readonly awsService: AwsService
     ) { }
     @Get()
     @HttpCode(200)
@@ -136,7 +137,8 @@ export class FolderController {
             folderName: folder.id.toString(),
             commit
         });
-        const buffer = await this.fsService.getFile(uniqueFileName);
+        const getObjResult = await this.awsService.getFile(uniqueFileName);
+        const buffer = await getObjResult.Body.transformToByteArray()
         if (!buffer) {
             const job = await this.archiveService.getQueueJob(uniqueFileName);
             const state = await job.getState();

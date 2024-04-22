@@ -5,10 +5,10 @@ import { FolderService } from './folder.service';
 import { FolderController } from './folder.controller';
 import { AccountModule } from 'src/account/account.module';
 import { ArchiveModule } from 'src/archive/archive.module';
-import { FsModule } from 'src/fs/fs.module';
+import { FileModule } from 'src/fs/file.module';
 
 @Module({
-    imports:[TypeOrmModule.forFeature([Folder]),AccountModule,ArchiveModule,FsModule],
+    imports:[TypeOrmModule.forFeature([Folder]),AccountModule,ArchiveModule,FileModule],
     providers:[FolderService],
     controllers:[FolderController],
     exports:[TypeOrmModule]
