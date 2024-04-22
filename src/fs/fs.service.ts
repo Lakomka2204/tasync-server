@@ -1,6 +1,5 @@
 
 import { Injectable } from "@nestjs/common";
-import { ConfigService } from "@nestjs/config";
 import { existsSync } from "fs";
 import { readFile, unlink, writeFile } from "fs/promises";
 import { join } from "path";
@@ -8,8 +7,7 @@ import { join } from "path";
 @Injectable()
 export class FsService {
     constructor(
-        config: ConfigService
-    ){this.baseFolder = config.getOrThrow("TMP_FILE_STORAGE")}
+    ){this.baseFolder = process.env.TMP_FILE_STORAGE}
     baseFolder: string;
     async getFile(filename: string): Promise<Buffer | null> {
         const fullPath = join(this.baseFolder,filename);

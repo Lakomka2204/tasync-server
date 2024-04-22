@@ -5,7 +5,6 @@ import { compare, hash } from 'bcrypt';
 import { CreateAccountDto } from "./dto/create-account.dto";
 import { AuthAccountDto } from "./dto/auth-account.dto";
 import { JwtService } from "@nestjs/jwt";
-import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import { UpdateAccountDto } from "./dto/update-account.dto";
 import * as speakeasy from 'speakeasy';
@@ -18,7 +17,6 @@ export class AccountService {
         @InjectRepository(Account)
         private readonly accountRepo: Repository<Account>,
         private readonly jwtService: JwtService,
-        private readonly config: ConfigService,
     ) { }
     async getByEmail(usernameOrEmail: string, withDeleted: boolean = false): Promise<Account | null> {
         return await this.accountRepo.findOne({ withDeleted, where: { email: usernameOrEmail } });
@@ -40,7 +38,7 @@ export class AccountService {
             password: await this.hashPassword(account.password)
         });
         await this.accountRepo.save(dbAccount);
-        const userPath = join(this.config.getOrThrow("TMP_FILE_STORAGE"),dbAccount.username);
+        const userPath = join(process.env.TMP_FILE_STORAGE,dbAccount.username);
         await mkdir(userPath);
         return dbAccount;
     }
@@ -72,7 +70,7 @@ export class AccountService {
         try {
             if (!token) return null;
             const jwtClaims = await this.jwtService.verifyAsync(token, {
-                secret: this.config.get("JWT_SECRET"),
+                secret: process.env.JWT_SECRET,
                 issuer: 'vkclone',
                 audience: 'vkclone',
             });
@@ -90,7 +88,7 @@ export class AccountService {
         return await this.jwtService.signAsync({ sub: id }, {
             issuer: 'vkclone',
             audience: 'vkclone',
-            secret: this.config.get("JWT_SECRET"),
+            secret: process.env.JWT_SECRET,
             expiresIn: "30d"
         });
     }

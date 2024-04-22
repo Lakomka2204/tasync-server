@@ -1,10 +1,9 @@
 
 import { Injectable } from '@nestjs/common';
-import Bull, { Queue } from 'bull';
+import { Queue } from 'bull';
 import { InjectQueue } from '@nestjs/bull';
 import { ArchiveItem, ArchiveJob } from './archive.object';
 import { writeFile } from 'fs/promises';
-import { join } from 'path';
 
 @Injectable()
 export class ArchiveService {
