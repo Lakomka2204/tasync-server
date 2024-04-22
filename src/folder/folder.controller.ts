@@ -72,19 +72,19 @@ export class FolderController {
     @UseInterceptors(FilesInterceptor('file'))
     async createSnapshot(
         @Req() req: Request,
-        @Headers("Ignore") ignoreFiles: string[],
+        @Headers("Ignore") ignoreFilesHeader: string,
         @Param("name") folderName: string,
         @Param("commit") commit: string,
         @Query("force") forceRewrite: string,
         @UploadedFiles(
             new ParseFilePipe({
                 validators: [
-                    new MaxFileSizeValidator({ maxSize: 104_858_624, message: "Too large file" })
-                ]
+                    new MaxFileSizeValidator({ maxSize: 104_858_624, message: "Too large file" }),
+                ],
             })
         ) files: Express.Multer.File[],
     ): Promise<string> {
-        console.log('ignore files', ignoreFiles);
+        const ignoreFiles = ignoreFilesHeader?.split(", ") ?? [];
         // check commit number
         if (isNaN(parseInt(commit?.toString())))
             throw new BadRequestException("Commit should be number");
@@ -100,7 +100,7 @@ export class FolderController {
         // check commit
         const lastCommit = folder.commits[folder.commits.length - 1];
         if (folder.commits.length > 0 && lastCommit != commit && forceRewrite !== "true")
-            throw new BadRequestException(`This commit is behind the latest`);
+            throw new BadRequestException("This commit is behind the latest");
         // generate new commit
         const newCommit = Math.floor(Date.now() / 1000).toString();
         // generate name for archive
