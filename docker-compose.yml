@@ -40,6 +40,7 @@ services:
       DB_USER: postgres
       DB_PASS: postgres
       DB_HOST: pg
+      DB_PORT: 5432
       DB_SCHEMA: public
       DB_DATABASE: postgres
       REDIS_HOST: redis
