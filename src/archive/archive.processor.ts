@@ -3,7 +3,6 @@ import { OnQueueCompleted, Process, Processor } from '@nestjs/bull';
 import { Job } from 'bull';
 import { ArchiveJob } from './archive.object';
 import { Writable } from 'stream';
-import { ConfigService } from '@nestjs/config';
 import { unlink, writeFile } from 'fs/promises';
 import * as AdmZip from 'adm-zip';
 import { Constants } from 'adm-zip/util';
