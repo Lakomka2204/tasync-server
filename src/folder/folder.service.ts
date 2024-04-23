@@ -10,48 +10,53 @@ import { CommitFolderDto } from './dto/commit-folder.dto';
 export class FolderService {
     constructor(
         @InjectRepository(Folder)
-        private readonly folderRepo: Repository<Folder>
-    ) { }
-    async getFolderByName({ folderName, ownerId }: BaseFolderDto): Promise<Folder | null> {
+        private readonly folderRepo: Repository<Folder>,
+    ) {}
+    async getFolderByName({
+        folderName,
+        ownerId,
+    }: BaseFolderDto): Promise<Folder | null> {
         return await this.folderRepo.findOne({
             where: {
                 name: folderName,
                 owner: {
-                    id: ownerId
-                }
+                    id: ownerId,
+                },
             },
             relations: ['owner'],
             select: {
                 owner: {
-                    id: true
-                }
-            }
+                    id: true,
+                },
+            },
         });
     }
     async getFolders(owner: Account): Promise<Folder[]> {
         return await this.folderRepo.find({
-            where:
-                { owner: { id: owner.id } },
+            where: { owner: { id: owner.id } },
             relations: ['owner'],
             select: {
                 owner: {
-                    id: true
-                }
-            }
+                    id: true,
+                },
+            },
         });
     }
     async createFolder(folder: BaseFolderDto): Promise<Folder | null> {
         const dbFolder = await this.getFolderByName(folder);
-        if (dbFolder)
-            return null;
-        const createdFolder = this.folderRepo.create({ name: folder.folderName, owner: { id: folder.ownerId } });
+        if (dbFolder) return null;
+        const createdFolder = this.folderRepo.create({
+            name: folder.folderName,
+            owner: { id: folder.ownerId },
+        });
         return await this.folderRepo.save(createdFolder);
     }
     async deleteFolder(folder: BaseFolderDto): Promise<boolean> {
         const dbFolder = await this.getFolderByName(folder);
-        if (!dbFolder)
-            return false;
-        return (await this.folderRepo.softDelete({ id: dbFolder.id })).affected > 0;
+        if (!dbFolder) return false;
+        return (
+            (await this.folderRepo.softDelete({ id: dbFolder.id })).affected > 0
+        );
     }
     async createCommit(folder: CommitFolderDto): Promise<Folder> {
         const dbFolder = await this.getFolderByName(folder);
@@ -60,16 +65,23 @@ export class FolderService {
     }
     async deleteCommit(folder: CommitFolderDto): Promise<boolean> {
         const dbFolder = await this.getFolderByName(folder);
-        if (!dbFolder)
-            return false;
-        return (await this.folderRepo.softDelete({ id: dbFolder.id })).affected > 0;
+        if (!dbFolder) return false;
+        return (
+            (await this.folderRepo.softDelete({ id: dbFolder.id })).affected > 0
+        );
     }
-    async updateIgnoredFiles(folder: BaseFolderDto | number, ignoreFiles: string[]): Promise<boolean> {
+    async updateIgnoredFiles(
+        folder: BaseFolderDto | number,
+        ignoreFiles: string[],
+    ): Promise<boolean> {
         const dbFolder =
             folder instanceof BaseFolderDto
-            ? await this.getFolderByName(folder)
-            : await this.folderRepo.findOneBy({id:folder});
-        return (await this.folderRepo.update({ id: dbFolder.id }, { ignoreFiles })).affected > 0;
+                ? await this.getFolderByName(folder)
+                : await this.folderRepo.findOneBy({ id: folder });
+        return (
+            (await this.folderRepo.update({ id: dbFolder.id }, { ignoreFiles }))
+                .affected > 0
+        );
     }
     composeUniqueId(folder: CommitFolderDto): string {
         return `${folder.ownerId}-${folder.folderName}-${folder.commit}`;

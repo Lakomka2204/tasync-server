@@ -33,9 +33,7 @@ import { DelAccountDto } from './dto/delete-account.dto';
 
 @Controller('account')
 export class AccountController {
-    constructor(
-        private readonly accountService: AccountService
-    ) { }
+    constructor(private readonly accountService: AccountService) {}
     @UseGuards(AccountGuard)
     @Get()
     async getAccountInfo(@Req() req: Request): Promise<AccountInfoDto> {
@@ -61,22 +59,35 @@ export class AccountController {
                 'User with specified email already exists.',
             );
         const newToken = await this.accountService.createJwtToken(account.id);
-        return { new_access_token: newToken }
+        return { new_access_token: newToken };
     }
 
-    @Patch("/delete")
+    @Patch('/delete')
     @UseGuards(AccountGuard)
     @HttpCode(200)
     @Throttle({ default: { ttl: minutes(3), limit: 1 } })
-    async deleteAccount(@Req() req: Request, @Body() delAccountBody: DelAccountDto) {
+    async deleteAccount(
+        @Req() req: Request,
+        @Body() delAccountBody: DelAccountDto,
+    ) {
         const account: Account = JSON.parse(req.headers.authorization);
-        if (!await this.accountService.compare(delAccountBody.password, account.password))
-            throw new UnauthorizedException("Password is invalid.");
+        if (
+            !(await this.accountService.compare(
+                delAccountBody.password,
+                account.password,
+            ))
+        )
+            throw new UnauthorizedException('Password is invalid.');
         if (account.twoFaSecret) {
             if (!delAccountBody.code)
-                throw new BadRequestException("2fa code is required.");
-            if (!this.accountService.verifyTotp(account.twoFaSecret, delAccountBody.code))
-                throw new UnauthorizedException("2fa code is invalid.");
+                throw new BadRequestException('2fa code is required.');
+            if (
+                !this.accountService.verifyTotp(
+                    account.twoFaSecret,
+                    delAccountBody.code,
+                )
+            )
+                throw new UnauthorizedException('2fa code is invalid.');
         }
         await this.accountService.deleteAccount(account.id);
     }
@@ -86,16 +97,19 @@ export class AccountController {
     @Throttle({ default: { ttl: minutes(1), limit: 5 } })
     async login(
         @Body() accountBody: AuthAccountDto,
-        @Res({ passthrough: true }) res: Response
+        @Res({ passthrough: true }) res: Response,
     ): Promise<{ access_token: string }> {
-        const [token, account] = await this.accountService.getAuthToken(accountBody, true);
+        const [token, account] = await this.accountService.getAuthToken(
+            accountBody,
+            true,
+        );
         if (token === undefined)
             throw new NotFoundException('Wrong email or password');
         else if (token === null)
             throw new ForbiddenException('2fa code is required.');
         if (account.deletedAt) {
-            res.header("X-AccessToken", token);
-            throw new UnauthorizedException("Account was deleted");
+            res.header('X-AccessToken', token);
+            throw new UnauthorizedException('Account was deleted');
         }
         return { access_token: token };
     }
@@ -127,10 +141,20 @@ export class AccountController {
             throw new MethodNotAllowedException(
                 'Your account does not have 2fa code',
             );
-        console.log("code", totpCode, "isnumber", isNumber(totpCode), "isInt", isInt(totpCode))
+        console.log(
+            'code',
+            totpCode,
+            'isnumber',
+            isNumber(totpCode),
+            'isInt',
+            isInt(totpCode),
+        );
         if (!totpCode || totpCode.length !== 6 || !parseInt(totpCode))
             throw new BadRequestException('No totp code.');
-        const isRemoved = await this.accountService.remove2Fa(account, totpCode);
+        const isRemoved = await this.accountService.remove2Fa(
+            account,
+            totpCode,
+        );
         if (!isRemoved) throw new BadRequestException('Wrong totp code.');
         return {
             access_token: await this.accountService.createJwtToken(account.id),
@@ -155,23 +179,31 @@ export class AccountController {
             );
         if (secret && code) {
             if (!this.accountService.verifyTotp(secret, code))
-                throw new BadRequestException("Wrong totp code.");
+                throw new BadRequestException('Wrong totp code.');
             await this.accountService.add2Fa(account, secret);
-            return res.json({ access_token: await this.accountService.createJwtToken(account.id) });
+            return res.json({
+                access_token: await this.accountService.createJwtToken(
+                    account.id,
+                ),
+            });
         }
         const secretData = this.accountService.genSecret();
         switch (type) {
-            case "qrcode":
+            case 'qrcode':
                 res.header('X-Secret', secretData.base32);
-                return res.type('png').send(await this.accountService.generate2FaQrCode(secretData));
-            case "text":
+                return res
+                    .type('png')
+                    .send(
+                        await this.accountService.generate2FaQrCode(secretData),
+                    );
+            case 'text':
                 return res.json({ secret: secretData.base32 });
             default:
-                throw new BadRequestException("No type.");
+                throw new BadRequestException('No type.');
         }
     }
 
-    @Patch("/restore")
+    @Patch('/restore')
     @HttpCode(200)
     @UseGuards(AccountGuard)
     @Throttle({ default: { ttl: minutes(1), limit: 3 } })

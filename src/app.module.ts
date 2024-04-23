@@ -16,31 +16,32 @@ import { dbSource } from './db-source';
             {
                 ttl: minutes(2),
                 limit: 30,
-            }]),
-            BullModule.forRoot({
-                redis:{
-                    host: process.env.REDIS_HOST,
-                    port: +process.env.REDIS_PORT,
-                },
-                defaultJobOptions: {
-                    removeOnComplete: true,
-                    attempts:5,
-                    removeOnFail:false,
-                    timeout:seconds(30)
-                }
-            }),
+            },
+        ]),
+        BullModule.forRoot({
+            redis: {
+                host: process.env.REDIS_HOST,
+                port: +process.env.REDIS_PORT,
+            },
+            defaultJobOptions: {
+                removeOnComplete: true,
+                attempts: 5,
+                removeOnFail: false,
+                timeout: seconds(30),
+            },
+        }),
         TypeOrmModule.forRoot(dbSource),
         AccountModule,
         FolderModule,
         ArchiveModule,
-        FileModule
+        FileModule,
     ],
     exports: [TypeOrmModule],
     providers: [
         {
             provide: APP_GUARD,
-            useClass: ProxyThrottlerGuard
-        }
-    ]
+            useClass: ProxyThrottlerGuard,
+        },
+    ],
 })
-export class AppModule { }
+export class AppModule {}

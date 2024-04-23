@@ -8,9 +8,14 @@ import { ArchiveModule } from 'src/archive/archive.module';
 import { FileModule } from 'src/fs/file.module';
 
 @Module({
-    imports:[TypeOrmModule.forFeature([Folder]),AccountModule,ArchiveModule,FileModule],
-    providers:[FolderService],
-    controllers:[FolderController],
-    exports:[TypeOrmModule]
+    imports: [
+        TypeOrmModule.forFeature([Folder]),
+        AccountModule,
+        ArchiveModule,
+        FileModule,
+    ],
+    providers: [FolderService],
+    controllers: [FolderController],
+    exports: [TypeOrmModule],
 })
 export class FolderModule {}

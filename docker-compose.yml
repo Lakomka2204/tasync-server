@@ -1,4 +1,4 @@
-version: "3"
+version: '3'
 services:
   pg:
     image: postgres:latest
@@ -10,7 +10,7 @@ services:
     networks:
       - pg
     restart: unless-stopped
-    volumes: 
+    volumes:
       - pg:/data/pg
   redis:
     image: redis:latest
@@ -35,7 +35,7 @@ services:
       - pg
       - redis
     ports:
-      - "80:3000"
+      - '80:3000'
     environment:
       DB_USER: postgres
       DB_PASS: postgres
@@ -54,7 +54,6 @@ services:
       AWS_S3_BUCKET: ${AWS_S3_BUCKET}
       TMP_PATH: /tmp
       JWT_ID: tasync
-      
 
 networks:
   pg:
@@ -65,7 +64,7 @@ networks:
     name: backend_network
 
 volumes:
-    pg:
-      name: pg_vol
-    redis:
-      name: redis_vol
+  pg:
+    name: pg_vol
+  redis:
+    name: redis_vol

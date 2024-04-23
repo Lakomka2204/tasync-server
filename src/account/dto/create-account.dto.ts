@@ -1,5 +1,5 @@
-import { IsEmail, IsStrongPassword } from "class-validator";
-import { AuthAccountDto } from "./auth-account.dto";
+import { IsEmail, IsStrongPassword } from 'class-validator';
+import { AuthAccountDto } from './auth-account.dto';
 
 export class CreateAccountDto extends AuthAccountDto {
     @IsEmail()

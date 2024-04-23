@@ -9,6 +9,6 @@ import { Account } from './account.entity';
     imports: [JwtModule, TypeOrmModule.forFeature([Account])],
     providers: [AccountService],
     controllers: [AccountController],
-    exports: [TypeOrmModule, AccountService]
+    exports: [TypeOrmModule, AccountService],
 })
-export class AccountModule { }
+export class AccountModule {}

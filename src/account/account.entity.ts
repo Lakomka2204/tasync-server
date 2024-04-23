@@ -16,13 +16,16 @@ export class Account {
     id: number;
     @Column({ unique: true })
     email: string;
-    @Column({nullable:true})
-    username:string;
+    @Column({ nullable: true })
+    username: string;
     @BeforeInsert()
     autoAssignUsername() {
         this.username = this.email.split('@')[0];
     }
-    @OneToMany(() => Folder,folder => folder.owner,{nullable:true,onDelete:'CASCADE'})
+    @OneToMany(() => Folder, (folder) => folder.owner, {
+        nullable: true,
+        onDelete: 'CASCADE',
+    })
     folders: Folder[];
     @Column()
     password: string;
