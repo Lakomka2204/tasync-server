@@ -1,5 +1,5 @@
 import { Exclude } from 'class-transformer';
-import { Account } from 'src/account/account.entity';
+import { Account } from '../account/account.entity';
 import {
     Column,
     CreateDateColumn,

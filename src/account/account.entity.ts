@@ -1,4 +1,4 @@
-import { Folder } from 'src/folder/folder.entity';
+import { Folder } from '../folder/folder.entity';
 import {
     BeforeInsert,
     Column,
