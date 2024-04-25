@@ -1,0 +1,7 @@
+migrations/
+.editorconfig
+.eslintrc.js
+.prettierrc
+LICENSE
+README.md
+node_modules/
