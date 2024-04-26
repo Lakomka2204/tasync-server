@@ -11,8 +11,6 @@ services:
     restart: unless-stopped
     volumes:
       - pg:/data/pg
-    ports:
-      - "5432:5432"
   redis:
     image: redis:latest
     container_name: redis
@@ -46,15 +44,15 @@ services:
       DB_DATABASE: postgres
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      PORT: 3000
-      NODE_ENV: staging
+      JWT_ID: tasync
       JWT_SECRET: ${JWT_SECRET}
       AWS_S3_REGION: ${AWS_S3_REGION}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
       AWS_S3_BUCKET: ${AWS_S3_BUCKET}
+      PORT: 3000
       TMP_PATH: /tmp
-      JWT_ID: tasync
+      NODE_ENV: staging
 
 networks:
   pg:
