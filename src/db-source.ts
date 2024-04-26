@@ -1,6 +1,9 @@
+import { config } from 'dotenv';
 import { join } from 'path';
 import { DataSource, DataSourceOptions } from 'typeorm';
 const entityExt = __dirname.endsWith("src") ? 'ts' : 'js';
+if (entityExt == 'ts')
+  config(); //! should be .env file with same creds but DB_HOST=localhost
 export const dbSource: DataSourceOptions = {
   type: 'postgres',
   host: process.env.DB_HOST,
